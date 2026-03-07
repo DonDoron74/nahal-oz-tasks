@@ -224,9 +224,13 @@ function UserManager({ users, setUsers, onBack }) {
 }
 
 function App() {
-  const [users, setUsers] = useState(DEFAULT_USERS);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [tasks, setTasks] = useState(initialTasks);
+  const [users, setUsersRaw] = useState(() => { try { const s = localStorage.getItem("noz_users"); return s ? JSON.parse(s) : DEFAULT_USERS; } catch { return DEFAULT_USERS; } });
+  const [currentUser, setCurrentUserRaw] = useState(() => { try { const s = localStorage.getItem("noz_current"); return s ? JSON.parse(s) : null; } catch { return null; } });
+  const [tasks, setTasksRaw] = useState(() => { try { const s = localStorage.getItem("noz_tasks"); return s ? JSON.parse(s) : initialTasks; } catch { return initialTasks; } });
+
+  const setUsers = (v) => { const val = typeof v === "function" ? v(users) : v; setUsersRaw(val); localStorage.setItem("noz_users", JSON.stringify(val)); };
+  const setCurrentUser = (v) => { setCurrentUserRaw(v); localStorage.setItem("noz_current", JSON.stringify(v)); };
+  const setTasks = (v) => { const val = typeof v === "function" ? v(tasks) : v; setTasksRaw(val); localStorage.setItem("noz_tasks", JSON.stringify(val)); };
   const [view, setView] = useState("tasks");
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [filterStatus, setFilterStatus] = useState("all");
@@ -235,12 +239,14 @@ function App() {
   const [newComment, setNewComment] = useState("");
   const [toast, setToast] = useState("");
   const [activeTab, setActiveTab] = useState("tasks");
-  const [archived, setArchived] = useState([]);
+  const [archived, setArchivedRaw] = useState(() => { try { const s = localStorage.getItem("noz_archived"); return s ? JSON.parse(s) : []; } catch { return []; } });
+  const setArchived = (v) => { const val = typeof v === "function" ? v(archived) : v; setArchivedRaw(val); localStorage.setItem("noz_archived", JSON.stringify(val)); };
   const [showArchive, setShowArchive] = useState(false);
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2600); };
   const userName = (id) => users.find(u => u.id === id)?.name || id;
-  const waGroup = (msg) => { if (WA_GROUP) window.open(WA_GROUP, "_blank"); else window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank"); };
+  const [waMsgPopup, setWaMsgPopup] = useState(null);
+  const waGroup = (msg) => { setWaMsgPopup(msg); };
 
   const filtered = tasks.filter(t => (filterStatus === "all" || t.status === filterStatus) && (filterCategory === "all" || t.category === filterCategory));
   const stats = { open: tasks.filter(t => t.status === "open").length, inprogress: tasks.filter(t => t.status === "inprogress").length, done: tasks.filter(t => t.status === "done").length, urgent: tasks.filter(t => t.priority === "high" && t.status !== "done").length };
@@ -582,6 +588,28 @@ function App() {
   return (
     <div style={{ minHeight: "100vh", background: "#f5f6fa", fontFamily: "'Rubik',sans-serif", direction: "rtl", paddingBottom: "85px" }}>
       {toast && <div style={{ position: "fixed", top: "18px", left: "50%", transform: "translateX(-50%)", zIndex: 999, background: "#1a1a2e", color: "#fff", padding: "11px 22px", borderRadius: "30px", fontSize: "14px", fontWeight: "600", boxShadow: "0 8px 28px rgba(0,0,0,0.28)", whiteSpace: "nowrap" }}>{toast}</div>}
+
+      {waMsgPopup && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div style={{ background: "#fff", borderRadius: "18px", padding: "22px", maxWidth: "420px", width: "100%", fontFamily: "'Rubik',sans-serif", direction: "rtl" }}>
+            <div style={{ fontSize: "16px", fontWeight: "700", color: "#1a1a2e", marginBottom: "12px" }}>📱 הודעה לקבוצה</div>
+            <div style={{ background: "#f0f9f2", border: "1px solid #c3e6cb", borderRadius: "12px", padding: "14px", fontSize: "14px", lineHeight: "1.7", color: "#333", whiteSpace: "pre-wrap", marginBottom: "16px", userSelect: "all" }}>
+              {waMsgPopup}
+            </div>
+            <div style={{ fontSize: "12px", color: "#999", marginBottom: "16px" }}>לחץ על הטקסט ← העתק ← פתח את הקבוצה והדבק</div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => { window.open(WA_GROUP, "_blank"); setWaMsgPopup(null); }}
+                style={{ flex: 1, padding: "12px", background: "#25D366", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "700", fontSize: "15px", cursor: "pointer", fontFamily: "'Rubik',sans-serif" }}>
+                📲 פתח קבוצה
+              </button>
+              <button onClick={() => setWaMsgPopup(null)}
+                style={{ padding: "12px 16px", background: "#f0f0f0", color: "#666", border: "none", borderRadius: "12px", fontWeight: "600", fontSize: "14px", cursor: "pointer", fontFamily: "'Rubik',sans-serif" }}>
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ background: "linear-gradient(135deg,#1a1a2e,#0f3460)", padding: "18px 18px 20px", color: "#fff" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
